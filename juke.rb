@@ -30,42 +30,51 @@ class Member
     @password
   end
   def login_member ()
-    #puts ("Logging you in with "+@logon+" and "+@password+".")
-    #puts ("Validating user "+@logon+" ...")
-    my_url = "http://rds-accountmgmt.internal.rhapsody.com/rhapsodydirectaccountmgmt/data/methods/authenticateMember.js?developerKey=#{$developerKey}&cobrandId=#{$cobrandId}&logon=#{URI.escape(@logon,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))}&password=#{URI.escape(@password,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))}"
-    my_hash = JSON.parse(RestClient.get(my_url))
-    if my_hash["emailAddress"]==@logon
+    auth_url = "http://rds-accountmgmt.internal.rhapsody.com/rhapsodydirectaccountmgmt/data/methods/authenticateMember.js?developerKey=#{$developerKey}&cobrandId=#{$cobrandId}&logon=#{encode(@logon)}&password=#{encode(@password)}"
+    token_url = "http://rds-accountmgmt.internal.rhapsody.com/rhapsodydirectaccountmgmt/data/methods/getLogonToken.js?developerKey=#{$developerKey}&cobrandId=#{$cobrandId}&logon=#{encode(@logon)}&password=#{encode(@password)}"
+    @auth_hash = JSON.parse(RestClient.get(auth_url))
+    @token_hash = JSON.parse(RestClient.get(token_url))
+    if @auth_hash["emailAddress"]==@logon
       @logged_in=true
-      #puts "Login Successful for "+my_hash["emailAddress"]
+      puts "Data returned for "+@auth_hash["emailAddress"]
       print "Login Successful. "
       puts "Welcome to Rhapsody!"
-      puts my_hash
+      puts @auth_hash
+      puts "*****************"
+      @token = @token_hash["value"]
+      puts "token = #{@token}"
+      puts "encoded token = #{encode(@token)}"
     else
-      puts "Login Error: "+my_hash["localizedMessage"]
+      puts "Login Error: "+@auth_hash["localizedMessage"]
     end
-
+  end
+  def get_track
+    get_track_url = "https://playback.rhapsody.com/getContent.json?token=#{encode(@token)}&trackId=Tra.12276919&pcode=rn&nimdax=true&mid=123"
+    
+    @track_hash = JSON.parse(RestClient.get(get_track_url))
+    puts @track_hash
   end
 end
 
-
+def encode(thing)
+  URI.escape(thing,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+end
+  
 def initializeUser
-  user = Member.new
+  @user = Member.new
 
   puts 'Welcome to Juke, the Rhapsody shell client'
   print 'Enter your username: '
-  user.set_logon(gets().chomp)
+  @user.set_logon(gets().chomp)
   print 'Enter your password: '
-  #user.set_password(gets().chomp)
-  #user.set_password(STDIN.noecho(&:gets))
-  user.set_password(ask("") { |q| q.echo = false })
-  user.login_member()
+  @user.set_password(ask("") { |q| q.echo = false })
+  @user.login_member()
 end
 
 
-#password_test = ask("Enter password: ") { |q| q.echo = false }
-#print(password_test)
-initializeUser
 
+initializeUser
+@user.get_track
 
 
 
