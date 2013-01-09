@@ -15,7 +15,7 @@ puts ("movie.audio_channels :"+movie.audio_channels.to_s)
 puts ("movie.valid? :"+movie.valid?.to_s)
 puts " "
 puts "File is valid. Extracting mp3 audio track"
-transcoded_audio = movie.transcode("media/testfile3.mp3", "-vn -acodec copy") #{
+transcoded_audio = movie.transcode("testfile3.mp3", "-vn -acodec copy") #{
 #  |progress| puts progress
 #}
 puts " "

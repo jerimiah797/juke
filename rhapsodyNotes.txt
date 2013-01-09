@@ -62,12 +62,15 @@ rtmpte://rhapsodyev-359.fcod.llnwd.net/a4376/v1/s/9/5/3/9/6/172169359?e=13542986
 
 ./rtmpdump -r "rtmpte://rhapsodyev-359.fcod.llnwd.net/a4376/v1" -a "a4376/v1" -f "WIN 11,4,402,287" -W "http://www.rhapsody.com/assets/flash/MiniPlayer.swf" -y "mp3:s/9/5/3/9/6/172169359?e=1354300322&h=4b864453d3e9a5b020777935e232379d" -o testfile3.flv
 
+./rtmpdump -r "rtmpte://rhapsodyev-507.fcod.llnwd.net/a4376/v1" -a "a4376/v1" -f "WIN 11,4,402,287" -W "http://www.rhapsody.com/assets/flash/MiniPlayer.swf" -y "mp3:s/7/0/5/3/3/136733507?e=1357177177&h=150d691c99c999a7ea41f599e930fe20" -o testfile3.flv
+
 rtmpdump -r "rtmpte://rhapsodyev-183.fcod.llnwd.net/a4376/v2" -a "a4376/v2" -f "WIN 11,4,402,287" -W "http://www.rhapsody.com/assets/flash/MiniPlayer.swf" -y "mp3:s/3/8/1/8/4/898248183?e=1354236947&h=86dc9b067e68ea915a87143e4600422a" -o- | "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe" - 
 
 rtmpdump -r "rtmpte://rhapsodyev-183.fcod.llnwd.net/a4376/v2" -a "a4376/v2" -f "WIN 11,4,402,287" -W "http://www.rhapsody.com/assets/flash/MiniPlayer.swf" -y "mp3:s/3/8/1/8/4/898248183?e=1354236947&h=86dc9b067e68ea915a87143e4600422a" -o filetest.flv
 
 -o- | "C:\Program Files (x86)\VideoLAN\VLC\vlc.exe" - --network-caching=10000 --file-caching=10000
 
+rtmpte://rhapsodyev-507.fcod.llnwd.net/a4376/v1/s/7/0/5/3/3/136733507?e=1357177177&h=150d691c99c999a7ea41f599e930fe20
 
 
 playback-int.internal.rhapsody.com/getContent.json?token=1M4QycklU9GerAo9V7DanZITdaaLLRzdN00cEf7HiXMfhbq7Y%2F1uqrCta%2FF7tLpO06G0G5KaC1GNpnQeXVIhCzSBA3hE2QJF7Lm5EmpJXgHebHAT3x6PD2Ym0yqOvGA3RL8MThNgXBneHqdGXy8DbjSncvKkG7tg0zinbV1edFrnH8cR324S7WDHCyQJJQobW6hG4NGUpy0Ce0EeJMZWLZddkYotVGtGPzveJ12enkpkoJcL%2FhBNQhmBg1RcGaI%2FIsE1dqDVEv3oHrx8LQuRPOQ%3D%3D&trackId=Tra.12276919&pcode=rn&nimdax=true&mid=123
