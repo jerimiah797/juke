@@ -19,6 +19,7 @@ $developerKey = "4B8C5B7B5B7B5I4H"
 $cobrandId = "40134"
 $client_type = "sonos"
 $localhost = "127.0.0.1"
+$track_id = "Tra.67752792"
 
 class Member
   @logged_in = false
@@ -47,17 +48,29 @@ class Member
       #puts @auth_hash
       #puts "*****************"
       @token = @token_hash["value"]
-      puts "token = #{@token}"
-      puts "encoded token = #{encode(@token)}"
+      #puts "token = #{@token}"
+      #puts "encoded token = #{encode(@token)}"
     else
       puts "Login Error: "+@auth_hash["localizedMessage"]
     end
   end
   def get_track
-    get_track_url = "https://playback.rhapsody.com/getContent.json?token=#{encode(@token)}&trackId=Tra.67752792&pcode=rn&nimdax=true&mid=123"    
+    get_track_url = "https://playback.rhapsody.com/getContent.json?token=#{encode(@token)}&trackId=#{$track_id}&pcode=rn&nimdax=true&mid=123"    
     @track_hash = JSON.parse(RestClient.get(get_track_url))
     @mediaUrl = @track_hash["data"]["mediaUrl"]
     @playbackSessionId = @track_hash["data"]["playbackSessionId"]
+  end
+  def get_track_metadata
+    track_metadata_url = "http://direct.rhapsody.com/metadata/data/methods/getLiteTrack.js?developerKey=4B8C5B7B5B7B5I4H&cobrandId=40134&filterRightsKey=0&trackId=#{$track_id}"
+    @metadata_hash = JSON.parse(RestClient.get(track_metadata_url))
+  end
+  def put_track_metadata
+    Mp3Info.open("testfile3.mp3") do |mp3|
+    	mp3.tag.title = @metadata_hash["name"]
+    	mp3.tag.artist = @metadata_hash["displayArtistName"]
+    	mp3.tag.album = @metadata_hash["displayAlbumName"]
+    	mp3.tag.tracknum = @metadata_hash["trackIndex"]
+    end
   end
   def fetch_flv
     platform = "WIN 11,4,402,287"
@@ -97,8 +110,6 @@ def play_mp3
 end
 
 def initializeUser
-  @user = Member.new
-
   puts 'Welcome to Juke, the Rhapsody shell client'
   print 'Enter your username: '
   @user.set_logon(gets().chomp)
@@ -108,12 +119,14 @@ def initializeUser
 end
 
 
-
-initializeUser
-@user.get_track
-@user.fetch_flv
-strip_mp3
-play_mp3
+@user = Member.new
+#initializeUser
+#@user.get_track
+@user.get_track_metadata
+#@user.fetch_flv
+#strip_mp3
+@user.put_track_metadata
+#play_mp3
 
 
 
