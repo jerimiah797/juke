@@ -45,17 +45,21 @@ class Member
       puts "Data returned for "+@auth_hash["emailAddress"]
       print "Login Successful. "
       puts "Welcome to Rhapsody!"
-      #puts @auth_hash
-      #puts "*****************"
       @token = @token_hash["value"]
-      #puts "token = #{@token}"
-      #puts "encoded token = #{encode(@token)}"
     else
       puts "Login Error: "+@auth_hash["localizedMessage"]
     end
   end
   def get_token
     @token
+  end
+  def sign_in
+    puts 'Welcome to Juke, the Rhapsody shell client'
+    print 'Enter your username: '
+    set_logon(gets().chomp)
+    print 'Enter your password: '
+    set_password(ask("") { |q| q.echo = false })
+    login_member()
   end
 end
 class Song
@@ -117,20 +121,11 @@ def play_mp3
   system the_command
 end
 
-def initializeUser (user)
-  puts 'Welcome to Juke, the Rhapsody shell client'
-  print 'Enter your username: '
-  user.set_logon(gets().chomp)
-  print 'Enter your password: '
-  user.set_password(ask("") { |q| q.echo = false })
-  user.login_member()
-end
+
 
 song_id = "Tra.67752792"
 user = Member.new
-initializeUser(user)
-puts user.get_logon
-puts user.get_password
+user.sign_in
 song = Song.new(user.get_token, song_id)
 song.process
 
