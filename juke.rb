@@ -74,11 +74,11 @@ class Song
     @playbackSessionId = @track_hash["data"]["playbackSessionId"]
   end
   def get_track_metadata
-    url = "http://direct.rhapsody.com/metadata/data/methods/getLiteTrack.js?developerKey=4B8C5B7B5B7B5I4H&cobrandId=40134&filterRightsKey=0&trackId=#{@song_id}"
+    url = "http://direct.rhapsody.com/metadata/data/methods/getLiteTrack.js?developerKey=#{$developerKey}&cobrandId=#{$cobrandId}&filterRightsKey=0&trackId=#{@song_id}"
     @metadata_hash = JSON.parse(RestClient.get(url))
   end
   def put_track_metadata
-    Mp3Info.open("testfile3.mp3") do |mp3|
+    Mp3Info.open("media/#{@song_id}.mp3") do |mp3|
     	mp3.tag.title = @metadata_hash["name"]
     	mp3.tag.artist = @metadata_hash["displayArtistName"]
     	mp3.tag.album = @metadata_hash["displayAlbumName"]
@@ -88,23 +88,23 @@ class Song
   def fetch_flv
     platform = "WIN 11,4,402,287"
     mpswf = "http://www.rhapsody.com/assets/flash/MiniPlayer.swf"
-    filename = "testfile3.flv"
+    @filename = "tempfile.flv"
     uri = Addressable::URI.parse(@mediaUrl)
     pathsub1 = uri.path[1..8]
     pathsub2 = uri.path[10..-1]
     seg1 = "#{uri.scheme}://#{uri.host}/#{pathsub1}"
     seg2 = pathsub1
     seg3 = "mp3:#{pathsub2}?#{uri.query}"
-    cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "#{filename}")
+    cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@filename}")
     system cmdstring
   end
   def strip_mp3
-    movie = FFMPEG::Movie.new("testfile3.flv")
-    transcoded_audio = movie.transcode("testfile3.mp3", "-vn -acodec copy")
+    movie = FFMPEG::Movie.new("media/#{@filename}")
+    transcoded_audio = movie.transcode("media/#{@song_id}.mp3", "-vn -acodec copy")
   end
   def process
-    get_track_mediaurl
     get_track_metadata
+    get_track_mediaurl
     fetch_flv
     strip_mp3
     put_track_metadata
@@ -116,20 +116,19 @@ def encode(thing)
 end
 
   
-def play_mp3
-  the_command = %Q(/Applications/VLC.app/Contents/MacOS/VLC -I rc testfile3.mp3)
-  system the_command
+def play_mp3 (song_id)
+  system "/Applications/VLC.app/Contents/MacOS/VLC -I rc media/#{song_id}.mp3"
 end
 
 
 
-song_id = "Tra.67752792"
+song_id = "Tra.70625786"
 user = Member.new
 user.sign_in
 song = Song.new(user.get_token, song_id)
 song.process
 
-play_mp3
+play_mp3(song_id)
 
 
 
