@@ -13,7 +13,7 @@ require 'librtmp'
 require 'open4'
 require 'streamio-ffmpeg'
 require 'mp3info'
-require 'vlcrc'
+#require 'vlcrc'
 
 $developerKey = "4B8C5B7B5B7B5I4H"
 $cobrandId = "40134"
@@ -104,17 +104,23 @@ class Song
   end
   def fetch_flv
     if @mediaUrl
-      platform = "WIN 11,4,402,287"
-      mpswf = "http://www.rhapsody.com/assets/flash/MiniPlayer.swf"
-      uri = Addressable::URI.parse(@mediaUrl)
-      pathsub1 = uri.path[1..8]
-      pathsub2 = uri.path[10..-1]
-      seg1 = "#{uri.scheme}://#{uri.host}/#{pathsub1}"
-      seg2 = pathsub1
-      seg3 = "mp3:#{pathsub2}?#{uri.query}"
-      cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@song_id}.flv")
-      #puts cmdstring
-      system cmdstring
+      for i in 1..5
+        platform = "WIN 11,4,402,287"
+        mpswf = "http://www.rhapsody.com/assets/flash/MiniPlayer.swf"
+        uri = Addressable::URI.parse(@mediaUrl)
+        pathsub1 = uri.path[1..8]
+        pathsub2 = uri.path[10..-1]
+        seg1 = "#{uri.scheme}://#{uri.host}/#{pathsub1}"
+        seg2 = pathsub1
+        seg3 = "mp3:#{pathsub2}?#{uri.query}"
+        cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@song_id}.flv")
+        #puts cmdstring
+        system cmdstring
+        if !File.zero?("media/#{@song_id}.flv")
+          #successfull download
+          return
+        end
+      end
     else
       puts "Error: Can't fetch track without mediaUrl"
       @success = false
@@ -148,29 +154,48 @@ end
 def play_mp3 (song_id)
   system "/Applications/VLC.app/Contents/MacOS/VLC -I rc media/#{song_id}.mp3"
 end
-=begin 
-    Use this for future vlc launching
-    # Launch an instance of VLC with the RC interface configured for the
-    # specified TCP socket unless there already is one.
-    def launch
-      return false if connected?
-      if RUBY_PLATFORM =~ /(win|w)(32|64)$/
-        %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
-      elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/Applications/VLC.app/Contents/MacOS/VLC') && @bin == 'vlc'
-        %x{ /Applications/VLC.app/Contents/MacOS/VLC #{@extra_args} --extraintf=lua --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >/dev/null 2>&1 & }
-      else
-        %x{ #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >/dev/null 2>&1 & }
-      end
-      # TODO pre-lua rc interface (VLC version detection?)
-      true
+
+class VLC
+  def launch
+    #return false if connected?
+    #puts RUBY_PLATFORM
+    # initialize open4
+    puts "Entering launch function"
+    @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
+
+    if RUBY_PLATFORM =~ /(win|w)(32|64)$/
+      %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
+    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/Applications/VLC.app/Contents/MacOS/VLC') && @bin == 'vlc'
+      %x{ /Applications/VLC.app/Contents/MacOS/VLC #{@extra_args} --extraintf=lua --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >/dev/null 2>&1 & }
+    else
+      puts "Trying to launch VLC..."
+      @stdin.puts "which vlc"
+      puts "which vlc was directed to stdin"
+      #puts "stdout: #{stdout.read.strip}"
+      @stdin.puts "vlc -I rc"
+      puts "vlc launch command was directed to stdin"
+      #puts "stdout: #{stdout.read.strip}"
+      # system "vlc -I rc"
     end
-=end
+    true
+  end
+  def add
+    @stdin.puts "add media/Tra.51845000.mp3"
+    puts "send add track to stdin"
+  end
+  def pause
+    @stdin.puts "pause"
+  end
+end
+
 
 
 #song_id = "Tra.65319668" #Bad track for testing
-song_id = "Tra.70625786" #New Bowie track
+#song_id = "Tra.70625786" #New Bowie track
+song_id = "Tra.51845000" #Zeldo techno
 user = Member.new
 user.sign_in
+vlc = VLC.new
 
 running = true
 answer = ""
@@ -191,6 +216,11 @@ while running
     song = Song.new(user.get_token, song_id)
     x = song.process
     puts "Download failed. Press \"d\" to try again" if !x
+  elsif answer == "p"
+    vlc.launch
+    vlc.add
+  elsif answer == " "
+    vlc.pause
   else
     puts "Command not recognized."
   end

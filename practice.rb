@@ -37,3 +37,18 @@ puts(URI.encode(pass,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]")))
 
 
 
+  # Start playing a file
+  puts "starting playback"
+  vlc.media = "media/#{song_id}.mp3"
+
+  #wait
+  puts "waiting 15 sec"
+  sleep 15
+
+  # Stop the file
+  puts "stopping playback"
+  vlc.playing = false
+
+  # Close VLC
+  puts "closing vlc instance"
+  vlc.exit
