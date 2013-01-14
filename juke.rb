@@ -11,6 +11,7 @@ require 'highline/import'
 require 'addressable/uri'
 require 'librtmp'
 require 'open4'
+require 'open3'
 require 'streamio-ffmpeg'
 require 'mp3info'
 #require 'vlcrc'
@@ -42,7 +43,8 @@ class Member
     if @auth_hash["emailAddress"]==@logon
       @logged_in=true
       #puts "Data returned for "+@auth_hash["emailAddress"]
-      print "Login Successful. "
+      
+      puts "\nLogin Successful. "
       puts "Welcome to Rhapsody!"
       @token = @token_hash["value"]
     else
@@ -88,6 +90,10 @@ class Song
   def get_track_metadata
     url = "http://direct.rhapsody.com/metadata/data/methods/getLiteTrack.js?developerKey=#{$developerKey}&cobrandId=#{$cobrandId}&filterRightsKey=0&trackId=#{@song_id}"
     @metadata_hash = JSON.parse(RestClient.get(url))
+    @track_title = @metadata_hash["name"]
+    @track_artist = @metadata_hash["displayArtistName"]
+    @track_album = @metadata_hash["displayAlbumName"]
+    @track_num = @metadata_hash["trackIndex"]
   end
   def put_track_metadata
     if !File.exists?("media/#{@song_id}.mp3") 
@@ -96,13 +102,14 @@ class Song
       return
     end
     Mp3Info.open("media/#{@song_id}.mp3") do |mp3|
-    	mp3.tag.title = @metadata_hash["name"]
-    	mp3.tag.artist = @metadata_hash["displayArtistName"]
-    	mp3.tag.album = @metadata_hash["displayAlbumName"]
-    	mp3.tag.tracknum = @metadata_hash["trackIndex"]
+    	mp3.tag.title = @track_title
+    	mp3.tag.artist = @track_artist
+    	mp3.tag.album = @track_album
+    	mp3.tag.tracknum = @track_num
     end
   end
   def fetch_flv
+    puts "Downloading...."
     if @mediaUrl
       for i in 1..5
         platform = "WIN 11,4,402,287"
@@ -115,25 +122,42 @@ class Song
         seg3 = "mp3:#{pathsub2}?#{uri.query}"
         cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@song_id}.flv")
         #puts cmdstring
-        system cmdstring
+        #result = %x[rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@song_id}.flv"]
+        #puts result
+        status = Open4::popen4("sh") do |pid, stdin, stdout, stderr|
+          stdin.puts(cmdstring)
+          stdin.close
+
+          log = "stderr : #{stderr.read.strip }"
+          #puts stderr.gets
+          #puts stderr.gets
+          #puts stderr.gets
+          #puts "PID #{pid}" 
+        end
+        #puts "Status: #{status.inspect}"
         if !File.zero?("media/#{@song_id}.flv")
-          #successfull download
+          #puts !File.zero?("media/#{@song_id}.flv")
+          puts "Download successful!"
           return
         end
+        puts "Unsuccessful attempt. Trying again..."
       end
+      @success = false
+      puts "Five attempts failed"
     else
       puts "Error: Can't fetch track without mediaUrl"
       @success = false
     end
   end
   def strip_mp3
-    if File.zero?("media/#{@song_id}.flv") || !File.exists?("media/#{@song_id}.flv")
-      puts "Error: Zero length file. Aborting transcode"
-      @success = false
+    puts "Transcoding..."
+    if File.exists?("media/#{@song_id}.flv") && !File.zero?("media/#{@song_id}.flv")
+      movie = FFMPEG::Movie.new("media/#{@song_id}.flv")
+      transcoded_audio = movie.transcode("media/#{@song_id}.mp3", "-vn -acodec copy")
       return
     end
-    movie = FFMPEG::Movie.new("media/#{@song_id}.flv")
-    transcoded_audio = movie.transcode("media/#{@song_id}.mp3", "-vn -acodec copy")
+    puts "Error: Zero length file. Aborting transcode"
+    @success = false
   end
   def process
     get_track_metadata if @success == true
@@ -142,7 +166,19 @@ class Song
     strip_mp3 if @success == true
     put_track_metadata if @success == true
     File.delete("media/#{@song_id}.flv") if File.exists?("media/#{@song_id}.flv")
-    return @success
+    @success
+  end
+  def track_title
+    @track_title
+  end
+  def track_artist
+    @track_artist
+  end
+  def track_album
+    @track_album
+  end
+  def song_id
+    @song_id
   end
 end
 
@@ -150,41 +186,35 @@ def encode(thing)
   URI.escape(thing,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
 end
 
-  
-def play_mp3 (song_id)
-  system "/Applications/VLC.app/Contents/MacOS/VLC -I rc media/#{song_id}.mp3"
-end
-
 class VLC
   def launch
     #return false if connected?
     #puts RUBY_PLATFORM
     # initialize open4
-    puts "Entering launch function"
-    @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
+    #puts "Entering launch function"
+    @pid, @stdin, @stdout, @stderr = Open4::popen4 "bash"
 
     if RUBY_PLATFORM =~ /(win|w)(32|64)$/
       %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
     elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/Applications/VLC.app/Contents/MacOS/VLC') && @bin == 'vlc'
       %x{ /Applications/VLC.app/Contents/MacOS/VLC #{@extra_args} --extraintf=lua --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >/dev/null 2>&1 & }
     else
-      puts "Trying to launch VLC..."
-      @stdin.puts "which vlc"
-      puts "which vlc was directed to stdin"
-      #puts "stdout: #{stdout.read.strip}"
       @stdin.puts "vlc -I rc"
-      puts "vlc launch command was directed to stdin"
+      puts "VLC standing by!"
+      #puts @stdout.gets
+      #puts @stdout.gets
       #puts "stdout: #{stdout.read.strip}"
       # system "vlc -I rc"
     end
     true
   end
-  def add
-    @stdin.puts "add media/Tra.51845000.mp3"
-    puts "send add track to stdin"
+  def add (song)
+    @stdin.puts "add media/#{song.song_id}.mp3"
+    puts "Playing #{song.track_title}."
   end
   def pause
     @stdin.puts "pause"
+    puts "Pause / Play"
   end
 end
 
@@ -193,32 +223,31 @@ end
 #song_id = "Tra.65319668" #Bad track for testing
 #song_id = "Tra.70625786" #New Bowie track
 song_id = "Tra.51845000" #Zeldo techno
+
 user = Member.new
 user.sign_in
 vlc = VLC.new
+vlc.launch
 
 running = true
 answer = ""
 
 while running
-  puts "Type d to download the song, q to quit"
-  answer = ask("") do |q|
+  answer = ask("Type a command or press 'h' for help") do |q|
            q.echo      = false
            q.character = true
            #q.validate  = /\A[#{choices}]\Z/
          end
-  #say("You typed: #{answer}")
-  #puts "You typed #{answer}"
   if answer == "q" 
     puts "KTHXBYE"
     running = false
   elsif answer == "d"
-    song = Song.new(user.get_token, song_id)
-    x = song.process
+    @song = Song.new(user.get_token, song_id)
+    x = @song.process
     puts "Download failed. Press \"d\" to try again" if !x
+    puts "Ready to play: #{@song.track_title}"
   elsif answer == "p"
-    vlc.launch
-    vlc.add
+    vlc.add(@song)
   elsif answer == " "
     vlc.pause
   else
@@ -226,5 +255,3 @@ while running
   end
 end
 
-
-#play_mp3(song_id)
