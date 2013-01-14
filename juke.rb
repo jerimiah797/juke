@@ -192,7 +192,7 @@ class VLC
     #puts RUBY_PLATFORM
     # initialize open4
     #puts "Entering launch function"
-    @pid, @stdin, @stdout, @stderr = Open4::popen4 "bash"
+    @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
 
     if RUBY_PLATFORM =~ /(win|w)(32|64)$/
       %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
