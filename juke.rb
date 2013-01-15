@@ -189,21 +189,22 @@ end
 class VLC
   def launch
     #return false if connected?
-    #puts RUBY_PLATFORM
+    puts RUBY_PLATFORM
     # initialize open4
     #puts "Entering launch function"
     @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
 
     if RUBY_PLATFORM =~ /(win|w)(32|64)$/
       %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
-    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/Applications/VLC.app/Contents/MacOS/VLC') && @bin == 'vlc'
-      %x{ /Applications/VLC.app/Contents/MacOS/VLC #{@extra_args} --extraintf=lua --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >/dev/null 2>&1 & }
+    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/Applications/VLC.app/Contents/MacOS/VLC') 
+      @stdin.puts "/Applications/VLC.app/Contents/MacOS/VLC -I rc"
+      puts "VLC Mac standing by"
+      #puts "stdout: #{@stdout.read.strip}"
     else
       @stdin.puts "vlc -I rc"
-      puts "VLC standing by!"
-      #puts @stdout.gets
-      #puts @stdout.gets
-      #puts "stdout: #{stdout.read.strip}"
+      puts "VLC Linux standing by!"
+      
+      #puts "stdout: #{@stdout.read.strip}"
       # system "vlc -I rc"
     end
     true
@@ -218,16 +219,58 @@ class VLC
   end
 end
 
+class Album
+  def initialize (album_id)
+    @album_id = album_id
+    @track_list = 
+  end
+  def get_metadata
+    url = "http://direct.rhapsody.com/metadata/data/methods/getAlbum.js?developerKey=#{$developerKey}&albumId=#{@album_id}&cobrandId=#{$cobrandId}&filterRightsKey=0"
+    puts url
+    @metadata_obj = JSON.parse(RestClient.get(url))
+    puts JSON.pretty_generate(@metadata_obj)
+    puts @metadata_obj["displayName"]
+    puts @metadata_obj["releaseYear"]
+    puts @metadata_obj["trackMetadatas"][0]["albumId"]
+    puts @metadata_obj["trackMetadatas"][0]["name"]
+    @metadata_obj["trackMetadatas"][0]["discIndex"]
+    puts @metadata_obj["trackMetadatas"].length
+    for i in 1..@metadata_obj["trackMetadatas"].length 
+      
+      disc = @metadata_obj["trackMetadatas"][i]["discIndex"]
+      track = @metadata_obj["trackMetadatas"][i]["trackIndex"]
+      name = @metadata_obj["trackMetadatas"][i]["name"]
+      id = @metadata_obj["trackMetadatas"][i]["trackId"]
+      
+      puts disc
+      puts track
+      puts name
+      puts id
+      
+      @track_list[disc][track] = { :name => name, 
+                                   :track_id => id }
+      
+    end
+    puts @track_list
+  end
+  def process
+    get_metadata
+    #download_tracks
+    #build_tracklist
+    #play
+  end
+end
 
 
 #song_id = "Tra.65319668" #Bad track for testing
 #song_id = "Tra.70625786" #New Bowie track
 song_id = "Tra.51845000" #Zeldo techno
+album_id = "Alb.27479292" # Radiohead OK computer
 
 user = Member.new
 user.sign_in
 vlc = VLC.new
-vlc.launch
+vlc_running = vlc.launch
 
 running = true
 answer = ""
@@ -247,9 +290,13 @@ while running
     puts "Download failed. Press \"d\" to try again" if !x
     puts "Ready to play: #{@song.track_title}"
   elsif answer == "p"
-    vlc.add(@song)
+    vlc.add(@song) if vlc_running
   elsif answer == " "
     vlc.pause
+  elsif answer == "a"
+    album = Album.new(album_id)
+    album.process
+    #album.play
   else
     puts "Command not recognized."
   end
