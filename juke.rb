@@ -130,7 +130,7 @@ class Song
         seg2 = pathsub1
         seg3 = "mp3:#{pathsub2}?#{uri.query}"
         cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{self.song_id}.flv")
-        #puts cmdstring
+        puts cmdstring
         #result = %x[rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@song_id}.flv"]
         #puts result
         status = Open4::popen4("sh") do |pid, stdin, stdout, stderr|
@@ -161,15 +161,28 @@ class Song
   def strip_mp3
     puts "Transcoding..."
     if File.exists?("media/#{self.song_id}.flv") && !File.zero?("media/#{self.song_id}.flv")
-      movie = FFMPEG::Movie.new("media/#{self.song_id}.flv")
-      transcoded_audio = movie.transcode("media/#{self.song_id}.mp3", "-vn -acodec copy")
+      #movie = FFMPEG::Movie.new("media/#{self.song_id}.flv")
+      #transcoded_audio = movie.transcode("media/#{self.song_id}.mp3", "-vn -acodec copy")
+      cmdstring = %Q(ffmpeg -i media/#{self.song_id}.flv -y -acodec copy media/#{self.song_id}.mp3)
+      status = Open4::popen4("sh") do |pid, stdin, stdout, stderr|
+        stdin.puts(cmdstring)
+        stdin.close
+
+        #puts "using Open4"
+        log = "stderr : #{stderr.read.strip }"
+        #puts stderr.gets
+        #puts stderr.gets
+        #puts stderr.gets
+        #puts "PID #{pid}" 
+      end
+      
       return
     end
     puts "Error: Zero length file. Aborting transcode"
     self.success = false
   end
   def process
-    get_track_metadata if self.success == true
+    #get_track_metadata if self.success == true
     get_track_mediaurl ( $user.get_token) if self.success == true
     fetch_flv if self.success == true
     strip_mp3 if self.success == true
@@ -178,7 +191,7 @@ class Song
     self.success
   end
   def play
-    VLC.add(self)
+    VLC.add(self) if self.success
   end
   def pause
     VLC.pause
@@ -225,40 +238,42 @@ end
 class Album
   def initialize (album_id)
     @album_id = album_id
-    
+    @tracklist = []
   end
-  def get_metadata
+  def get_tracks
     url = "http://direct.rhapsody.com/metadata/data/methods/getAlbum.js?developerKey=#{$developerKey}&albumId=#{@album_id}&cobrandId=#{$cobrandId}&filterRightsKey=0"
-    puts url
     @metadata_obj = JSON.parse(RestClient.get(url))
-    puts JSON.pretty_generate(@metadata_obj)
-    puts @metadata_obj["displayName"]
-    puts @metadata_obj["releaseYear"]
-    print "Total number of tracks: "
-    puts @metadata_obj["trackMetadatas"].length
+    #puts JSON.pretty_generate(@metadata_obj)
+    #puts @metadata_obj["displayName"]
+    #puts @metadata_obj["releaseYear"]
+    #print "Total number of tracks: "
+    #puts @metadata_obj["trackMetadatas"].length
     for i in 0..@metadata_obj["trackMetadatas"].length-1
-      
-      disc = @metadata_obj["trackMetadatas"][i]["discIndex"]
-      track = @metadata_obj["trackMetadatas"][i]["trackIndex"]
-      name = @metadata_obj["trackMetadatas"][i]["name"]
-      id = @metadata_obj["trackMetadatas"][i]["trackId"]
-      
-      puts disc
-      puts track
-      puts name
-      puts id
-      
-      #@track_list[disc][track] = { :name => name, 
-       #                            :track_id => id }
+      x = Song.new(@metadata_obj["trackMetadatas"][i]["trackId"])
+      x.track_title = @metadata_obj["trackMetadatas"][i]["name"]
+      x.track_num = @metadata_obj["trackMetadatas"][i]["trackIndex"]
+      x.disc_num = @metadata_obj["trackMetadatas"][i]["discIndex"]
+      x.track_artist = @metadata_obj["primaryArtist"]["name"]
+      x.track_album = @metadata_obj["displayName"]
+      x.success = true
+      @tracklist << x
       
     end
-    
+    #puts @tracklist
+    #puts @tracklist.length
+    count = 0
+    @tracklist.each do |a| 
+      
+      count += 1
+      print "Get track #{count}) "
+      puts a.track_title  
+      a.process    
+    end
+    #puts @tracklist[0].inspect
+    #puts @tracklist[0].track_album
   end
-  def process
-    get_metadata
-    #download_tracks
-    #build_tracklist
-    #play
+  def play
+    vlc.play
   end
 end
 
@@ -272,6 +287,7 @@ $user = Member.new
 $user.sign_in
 
 vlc_running = VLC.launch
+$current_song = Song.new( song_id )
 
 running = true
 answer = ""
@@ -286,17 +302,17 @@ while running
     puts "KTHXBYE"
     running = false
   elsif answer == "d"
-    @song = Song.new( song_id )
-    x = @song.process
+    $current_song.get_track_metadata
+    x = $current_song.process
     puts "Download failed. Press \"d\" to try again" if !x
-    puts "Ready to play: #{@song.track_title}"
+    puts "Ready to play: #{$current_song.track_title}"
   elsif answer == "p"
-    @song.play if vlc_running
+    $current_song.play if vlc_running
   elsif answer == " "
-    @song.pause
+    $current_song.pause
   elsif answer == "a"
     album = Album.new(album_id)
-    album.process
+    album.get_tracks
     #album.play
   else
     puts "Command not recognized."
