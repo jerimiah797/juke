@@ -14,7 +14,8 @@ require 'open4'
 require 'open3'
 require 'streamio-ffmpeg'
 require 'mp3info'
-#require 'vlcrc'
+require 'thread'
+require 'gst'
 
 $developerKey = "4B8C5B7B5B7B5I4H"
 $cobrandId = "40134"
@@ -77,10 +78,12 @@ class Song
   attr_accessor :mediaUrl
   attr_accessor :playbackSessionId
   attr_accessor :success
+  attr_accessor :stream_pid
   
   def initialize( song_id )
     self.song_id = song_id
     self.success = true
+    self.stream_pid = ""
   end
   def get_track_mediaurl (token)
     url = "https://playback.rhapsody.com/getContent.json?token=#{encode(token)}&trackId=#{self.song_id}&pcode=rn&nimdax=true&mid=123"    
@@ -131,17 +134,17 @@ class Song
         seg3 = "mp3:#{pathsub2}?#{uri.query}"
         cmdstring = %Q(rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{self.song_id}.flv")
         puts cmdstring
-        #result = %x[rtmpdump -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -o "media/#{@song_id}.flv"]
-        #puts result
+
+        # format for using rtmpgw to stream instead of download
+        # rtmpgw -r "rtmpte://rhapsodyev-831.fcod.llnwd.net/a4376/v2" -a "a4376/v2" -f "WIN 11,4,402,287" -W "http://www.rhapsody.com/assets/flash/MiniPlayer.swf" -y "mp3:s/1/3/8/6/6/883266831?e=1358299355&h=f38fd1aa39ed5cbc6635f419f1f8b6f6" --sport 8902
+        
+        # connect to stream at http://0.0.0.0:8902
         status = Open4::popen4("sh") do |pid, stdin, stdout, stderr|
           stdin.puts(cmdstring)
           stdin.close
 
           log = "stderr : #{stderr.read.strip }"
-          #puts stderr.gets
-          #puts stderr.gets
-          #puts stderr.gets
-          #puts "PID #{pid}" 
+ 
         end
         #puts "Status: #{status.inspect}"
         if !File.zero?("media/#{self.song_id}.flv")
@@ -158,22 +161,48 @@ class Song
       self.success = false
     end
   end
+  def stream_flv
+    puts "Connecting...."
+    if self.mediaUrl
+      
+      platform = "WIN 11,4,402,287"
+      mpswf = "http://www.rhapsody.com/assets/flash/MiniPlayer.swf"
+      uri = Addressable::URI.parse(self.mediaUrl)
+      pathsub1 = uri.path[1..8]
+      pathsub2 = uri.path[10..-1]
+      seg1 = "#{uri.scheme}://#{uri.host}/#{pathsub1}"
+      seg2 = pathsub1
+      seg3 = "mp3:#{pathsub2}?#{uri.query}"
+      cmdstring = %Q(rtmpgw -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" --sport 8902)
+      #puts "killing old stream process #{self.stream_pid}" if self.stream_pid != ""
+      #system "kill #{self.stream_pid}" if self.stream_pid != ""
+
+      @pid, @stdin, @stdout, @stderr = Open4::popen4(cmdstring)
+      #stdin.puts(cmdstring)
+      #stdin.close
+
+      #puts "rtmpgw stdout : #{@stdout.read.strip }"
+      self.stream_pid = @pid
+      #puts self.stream_pid
+      #@ignored, @status = Process::waitpid2 @pid
+      #puts "show this text"
+      #puts "exit status: #{@status.exitstatus} "
+      #puts "Status: #{@status.inspect}"
+    else
+      puts "Error: Can't fetch track without mediaUrl"
+      self.success = false
+    end
+  end
   def strip_mp3
     puts "Transcoding..."
     if File.exists?("media/#{self.song_id}.flv") && !File.zero?("media/#{self.song_id}.flv")
-      #movie = FFMPEG::Movie.new("media/#{self.song_id}.flv")
-      #transcoded_audio = movie.transcode("media/#{self.song_id}.mp3", "-vn -acodec copy")
+
       cmdstring = %Q(ffmpeg -i media/#{self.song_id}.flv -y -acodec copy media/#{self.song_id}.mp3)
       status = Open4::popen4("sh") do |pid, stdin, stdout, stderr|
         stdin.puts(cmdstring)
         stdin.close
 
-        #puts "using Open4"
         log = "stderr : #{stderr.read.strip }"
-        #puts stderr.gets
-        #puts stderr.gets
-        #puts stderr.gets
-        #puts "PID #{pid}" 
       end
       
       return
@@ -182,7 +211,6 @@ class Song
     self.success = false
   end
   def process
-    #get_track_metadata if self.success == true
     get_track_mediaurl ( $user.get_token) if self.success == true
     fetch_flv if self.success == true
     strip_mp3 if self.success == true
@@ -190,11 +218,19 @@ class Song
     File.delete("media/#{self.song_id}.flv") if File.exists?("media/#{self.song_id}.flv")
     self.success
   end
-  def play
-    VLC.add(self) if self.success
+  def play_stream
+    puts "Getting mediaurl"
+    get_track_mediaurl ( $user.get_token) if self.success == true
+    puts "Got mediaurl"
+    puts "Setting up stream"
+    stream_flv if self.success == true
+    puts "Stream ready"
+    puts "Playing stream"
+    MPlayer.play_stream
+    self.success
   end
   def pause
-    VLC.pause
+    MPlayer.pause
   end
 end
 
@@ -202,6 +238,7 @@ def encode(thing)
   URI.escape(thing,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
 end
 
+=begin
 class VLC
   def VLC.launch
     #return false if connected?
@@ -231,6 +268,66 @@ class VLC
   end
   def VLC.pause
     @stdin.puts "pause"
+    puts "Pause / Play"
+  end
+=end
+
+class MPlayer 
+  def MPlayer.play_stream
+    #return false if connected?
+    #puts RUBY_PLATFORM
+    # initialize open4
+    #puts "Entering launch function"
+    
+
+    if RUBY_PLATFORM =~ /(win|w)(32|64)$/
+      %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
+    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/usr/local/bin/mplayer') 
+      @pid, @stdin, @stdout, @stderr = Open4::popen4 "mplayer -slave -quiet http://0.0.0.0:8902"
+      #@stdin.puts "mplayer -slave -quiet http://0.0.0.0:8902"
+      puts "MPlayer should be playing"
+      #puts "stderr: #{@stderr.read.strip}"
+      #puts @pid
+      #@ignored, @status = Process::waitpid2 @pid
+      #puts "show this text"
+      #puts "exit status: #{@status.exitstatus} "
+    else
+      @stdin.puts "vlc -I rc"
+      puts "VLC Linux standing by!"
+      
+      #puts "stdout: #{@stdout.read.strip}"
+      # system "vlc -I rc"
+    end
+    true
+  end
+  def MPlayer.play_file(song)
+    #return false if connected?
+    puts RUBY_PLATFORM
+    # initialize open4
+    #puts "Entering launch function"
+    @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
+
+    if RUBY_PLATFORM =~ /(win|w)(32|64)$/
+      %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
+    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/usr/local/bin/mplayer') 
+      @stdin.puts "mplayer -slave -quiet media/#{song.song_id}.mp3"
+      puts "Playing #{song.track_title}."
+      #puts "stdout: #{@stdout.read.strip}"
+    else
+      @stdin.puts "vlc -I rc"
+      puts "VLC Linux standing by!"
+      
+      #puts "stdout: #{@stdout.read.strip}"
+      # system "vlc -I rc"
+    end
+    true
+  end
+  def MPlayer.pause
+    @stdin.puts "pause"
+    puts "Pause / Play"
+  end
+  def MPlayer.stop
+    @stdin.puts "stop"
     puts "Pause / Play"
   end
 end
@@ -280,13 +377,15 @@ end
 
 #song_id = "Tra.65319668" #Bad track for testing
 #song_id = "Tra.70625786" #New Bowie track
-song_id = "Tra.51845000" #Zeldo techno
+#song_id = "Tra.51845000" #Zeldo techno
+song_id = "Tra.53550123" #short track for stream test
 album_id = "Alb.27479292" # Radiohead OK computer
 
 $user = Member.new
 $user.sign_in
 
-vlc_running = VLC.launch
+
+
 $current_song = Song.new( song_id )
 
 running = true
@@ -307,7 +406,7 @@ while running
     puts "Download failed. Press \"d\" to try again" if !x
     puts "Ready to play: #{$current_song.track_title}"
   elsif answer == "p"
-    $current_song.play if vlc_running
+    $current_song.play_stream
   elsif answer == " "
     $current_song.pause
   elsif answer == "a"
