@@ -172,17 +172,22 @@ class Song
       pathsub2 = uri.path[10..-1]
       seg1 = "#{uri.scheme}://#{uri.host}/#{pathsub1}"
       seg2 = pathsub1
-      seg3 = "mp3:#{pathsub2}?#{uri.query}"
-      cmdstring = %Q(rtmpgw -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" --sport 8902)
-      #puts "killing old stream process #{self.stream_pid}" if self.stream_pid != ""
-      #system "kill #{self.stream_pid}" if self.stream_pid != ""
+      seg4 = encode_amp(uri.query)
+      puts uri.query
+      puts seg4
+      seg3 = "mp3:#{pathsub2}?#{seg4}"
+      #cmdstring = %Q(rtmpgw -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -g 8902)
+      cmdstring = %Q(r="#{seg1}"&a=#{seg2}&f="#{platform}"&W=#{mpswf}&y=#{seg3})
+      puts cmdstring
+      string2 = URI.escape(cmdstring)
+      puts string2
 
-      @pid, @stdin, @stdout, @stderr = Open4::popen4(cmdstring)
+      #@pid, @stdin, @stdout, @stderr = Open4::popen4(cmdstring)
       #stdin.puts(cmdstring)
       #stdin.close
 
       #puts "rtmpgw stdout : #{@stdout.read.strip }"
-      self.stream_pid = @pid
+      #self.stream_pid = @pid
       #puts self.stream_pid
       #@ignored, @status = Process::waitpid2 @pid
       #puts "show this text"
@@ -236,6 +241,9 @@ end
 
 def encode(thing)
   URI.escape(thing,Regexp.new("[^#{URI::PATTERN::UNRESERVED}]"))
+end
+def encode_amp(thing)
+  URI.escape(thing, "&")
 end
 
 =begin
@@ -377,8 +385,8 @@ end
 
 #song_id = "Tra.65319668" #Bad track for testing
 #song_id = "Tra.70625786" #New Bowie track
-#song_id = "Tra.51845000" #Zeldo techno
-song_id = "Tra.53550123" #short track for stream test
+song_id = "Tra.51845000" #Zeldo techno
+#song_id = "Tra.53550123" #short track for stream test
 album_id = "Alb.27479292" # Radiohead OK computer
 
 $user = Member.new
