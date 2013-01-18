@@ -166,3 +166,6 @@ PROD response:
 <success type="boolean">true</success>
 </status>
 </o>
+
+
+mplayer -slave -cache 8192 -cache-min 3 "http://127.0.0.1:8902/?r=%22rtmpte://rhapsodyev-831.fcod.llnwd.net/a4376/v2%22&a=a4376/v2&f=%22WIN%2011,4,402,287%22&b=20000000&W=http://www.rhapsody.com/assets/flash/MiniPlayer.swf&y=mp3:s/1/3/8/6/6/883266831?e=1358463616%2526h=8bd8d4257565d9bcdd42feff836f5f76"

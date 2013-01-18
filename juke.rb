@@ -120,6 +120,7 @@ class Song
     	mp3.tag.tracknum = self.track_num
     end
   end
+
   def fetch_flv
     puts "Downloading...."
     if self.mediaUrl
@@ -173,26 +174,13 @@ class Song
       seg1 = "#{uri.scheme}://#{uri.host}/#{pathsub1}"
       seg2 = pathsub1
       seg4 = encode_amp(uri.query)
-      puts uri.query
-      puts seg4
+      
       seg3 = "mp3:#{pathsub2}?#{seg4}"
-      #cmdstring = %Q(rtmpgw -r "#{seg1}" -a "#{seg2}" -f "#{platform}" -W "#{mpswf}" -y "#{seg3}" -g 8902)
-      cmdstring = %Q(r="#{seg1}"&a=#{seg2}&f="#{platform}"&W=#{mpswf}&y=#{seg3})
-      puts cmdstring
+      cmdstring = %Q(r="#{seg1}"&a=#{seg2}&f="#{platform}"&b=20000000&W=#{mpswf}&y=#{seg3})
+      
       string2 = URI.escape(cmdstring)
-      puts string2
-
-      #@pid, @stdin, @stdout, @stderr = Open4::popen4(cmdstring)
-      #stdin.puts(cmdstring)
-      #stdin.close
-
-      #puts "rtmpgw stdout : #{@stdout.read.strip }"
-      #self.stream_pid = @pid
-      #puts self.stream_pid
-      #@ignored, @status = Process::waitpid2 @pid
-      #puts "show this text"
-      #puts "exit status: #{@status.exitstatus} "
-      #puts "Status: #{@status.inspect}"
+      string3 = %Q(mplayer -slave -cache 8192 -cache-min 5 "http://127.0.0.1:8902/?#{string2}")
+      MPlayer.play_stream(string3)
     else
       puts "Error: Can't fetch track without mediaUrl"
       self.success = false
@@ -231,7 +219,6 @@ class Song
     stream_flv if self.success == true
     puts "Stream ready"
     puts "Playing stream"
-    MPlayer.play_stream
     self.success
   end
   def pause
@@ -245,56 +232,40 @@ end
 def encode_amp(thing)
   URI.escape(thing, "&")
 end
+def launch_rtmpgw
+  @pid, @stdin, @stdout, @stderr = Open4::popen4("rtmpgw -g 8902")
+  
 
-=begin
-class VLC
-  def VLC.launch
+  #log_out = "stdout : #{@stdout.read.strip }"
+  #log_err = "stdout : #{@stdout.read.strip }"
+  puts "Re-streamer launched!"
+  @pid
+  #@ignored, @status = Process::waitpid2 @pid
+  #puts "show this text"
+  #puts "exit status: #{@status.exitstatus} "
+  #puts "Status: #{@status.inspect}"
+end
+
+class MPlayer 
+  def MPlayer.play_stream(launcher)
     #return false if connected?
     puts RUBY_PLATFORM
     # initialize open4
-    #puts "Entering launch function"
-    @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
-
-    if RUBY_PLATFORM =~ /(win|w)(32|64)$/
-      %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
-    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/Applications/VLC.app/Contents/MacOS/VLC') 
-      @stdin.puts "/Applications/VLC.app/Contents/MacOS/VLC -I rc"
-      puts "VLC Mac standing by"
-      #puts "stdout: #{@stdout.read.strip}"
-    else
-      @stdin.puts "vlc -I rc"
-      puts "VLC Linux standing by!"
-      
-      #puts "stdout: #{@stdout.read.strip}"
-      # system "vlc -I rc"
-    end
-    true
-  end
-  def VLC.add (song)
-    @stdin.puts "add media/#{song.song_id}.mp3"
-    puts "Playing #{song.track_title}."
-  end
-  def VLC.pause
-    @stdin.puts "pause"
-    puts "Pause / Play"
-  end
-=end
-
-class MPlayer 
-  def MPlayer.play_stream
-    #return false if connected?
-    #puts RUBY_PLATFORM
-    # initialize open4
-    #puts "Entering launch function"
+    puts "Entering launch function"
     
-
+    pid, stdin, stdout, stderr = Open4::popen4("sh")
     if RUBY_PLATFORM =~ /(win|w)(32|64)$/
       %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
     elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/usr/local/bin/mplayer') 
-      @pid, @stdin, @stdout, @stderr = Open4::popen4 "mplayer -slave -quiet http://0.0.0.0:8902"
-      #@stdin.puts "mplayer -slave -quiet http://0.0.0.0:8902"
+      
+      system launcher
+      #pid, stdin, stdout, stderr = Open4::popen4("sh")
+      #stdin.puts(launcher)
       puts "MPlayer should be playing"
-      #puts "stderr: #{@stderr.read.strip}"
+      
+      
+      #log = "stdout: #{stdout.read.strip}"
+    
       #puts @pid
       #@ignored, @status = Process::waitpid2 @pid
       #puts "show this text"
@@ -313,12 +284,12 @@ class MPlayer
     puts RUBY_PLATFORM
     # initialize open4
     #puts "Entering launch function"
-    @pid, @stdin, @stdout, @stderr = Open4::popen4 "sh"
+    pid, stdin, stdout, stderr = Open4::popen4 "sh"
 
     if RUBY_PLATFORM =~ /(win|w)(32|64)$/
       %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
     elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/usr/local/bin/mplayer') 
-      @stdin.puts "mplayer -slave -quiet media/#{song.song_id}.mp3"
+      stdin.puts "mplayer -slave -quiet media/#{song.song_id}.mp3"
       puts "Playing #{song.track_title}."
       #puts "stdout: #{@stdout.read.strip}"
     else
@@ -391,7 +362,7 @@ album_id = "Alb.27479292" # Radiohead OK computer
 
 $user = Member.new
 $user.sign_in
-
+#server_pid = launch_rtmpgw
 
 
 $current_song = Song.new( song_id )
@@ -406,6 +377,7 @@ while running
            #q.validate  = /\A[#{choices}]\Z/
          end
   if answer == "q" 
+    #system "kill #{server_pid}"
     puts "KTHXBYE"
     running = false
   elsif answer == "d"
