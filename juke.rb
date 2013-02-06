@@ -215,10 +215,8 @@ class Song
     puts "Getting mediaurl"
     get_track_mediaurl ( $user.get_token) if self.success == true
     puts "Got mediaurl"
-    puts "Setting up stream"
+    puts "Launching stream"
     stream_flv if self.success == true
-    puts "Stream ready"
-    puts "Playing stream"
     self.success
   end
   def pause
@@ -261,7 +259,7 @@ class MPlayer
       system launcher
       #pid, stdin, stdout, stderr = Open4::popen4("sh")
       #stdin.puts(launcher)
-      puts "MPlayer should be playing"
+      #puts "MPlayer should be playing"
       
       
       #log = "stdout: #{stdout.read.strip}"

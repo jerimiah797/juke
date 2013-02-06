@@ -2,6 +2,7 @@ GEM
   remote: https://rubygems.org/
   specs:
     addressable (2.3.2)
+    audite (0.3.0)
     color_debug_messages (1.1.3)
       term-ansicolor (>= 1.0.4)
     easy_mplayer (1.2.1)
@@ -34,6 +35,7 @@ PLATFORMS
 
 DEPENDENCIES
   addressable
+  audite
   easy_mplayer (~> 1.2.1)
   glib2
   gstreamer
