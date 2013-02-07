@@ -179,7 +179,7 @@ class Song
       cmdstring = %Q(r="#{seg1}"&a=#{seg2}&f="#{platform}"&b=20000000&W=#{mpswf}&y=#{seg3})
       
       string2 = URI.escape(cmdstring)
-      string3 = %Q(mplayer -slave -cache 8192 -cache-min 5 "http://127.0.0.1:8902/?#{string2}")
+      string3 = %Q(mplayer -slave -cache 8192 -cache-min 0 "http://127.0.0.1:8902/?#{string2}")
       MPlayer.play_stream(string3)
     else
       puts "Error: Can't fetch track without mediaUrl"
@@ -231,17 +231,16 @@ def encode_amp(thing)
   URI.escape(thing, "&")
 end
 def launch_rtmpgw
-  @pid, @stdin, @stdout, @stderr = Open4::popen4("rtmpgw -g 8902")
-  
+  #cmdstring = "nohup rtmpgw -g 8902 & exit"
+  #status = Open4::popen4("nohup rtmpgw -g 8902 & exit") do |pid, stdin, stdout, stderr|
+    #stdin.puts(cmdstring)
+    #stdin.puts("\n")
+    #stdin.close
 
-  #log_out = "stdout : #{@stdout.read.strip }"
-  #log_err = "stdout : #{@stdout.read.strip }"
-  puts "Re-streamer launched!"
-  @pid
-  #@ignored, @status = Process::waitpid2 @pid
-  #puts "show this text"
-  #puts "exit status: #{@status.exitstatus} "
-  #puts "Status: #{@status.inspect}"
+    #log = "stderr : #{stderr.read.strip }"
+  #end
+  cmd_out = system "nohup rtmpgw -g 8902 >& /dev/null & exit"
+  puts"Restreamer Ready..."
 end
 
 class MPlayer 
@@ -354,13 +353,13 @@ end
 
 #song_id = "Tra.65319668" #Bad track for testing
 #song_id = "Tra.70625786" #New Bowie track
-song_id = "Tra.51845000" #Zeldo techno
-#song_id = "Tra.53550123" #short track for stream test
+#song_id = "Tra.51845000" #Zeldo techno
+song_id = "Tra.53550123" #short track for stream test
 album_id = "Alb.27479292" # Radiohead OK computer
 
 $user = Member.new
 $user.sign_in
-#server_pid = launch_rtmpgw
+launch_rtmpgw
 
 
 $current_song = Song.new( song_id )
