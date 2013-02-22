@@ -169,3 +169,19 @@ PROD response:
 
 
 mplayer -slave -cache 8192 -cache-min 3 "http://127.0.0.1:8902/?r=%22rtmpte://rhapsodyev-831.fcod.llnwd.net/a4376/v2%22&a=a4376/v2&f=%22WIN%2011,4,402,287%22&b=20000000&W=http://www.rhapsody.com/assets/flash/MiniPlayer.swf&y=mp3:s/1/3/8/6/6/883266831?e=1358463616%2526h=8bd8d4257565d9bcdd42feff836f5f76"
+
+
+
+nohup ./rtmpgw -g 8902 > output.txt 2>&1 & exit
+
+
+@ApiServer = "http://labs-api.rhapsody.com/v0"
+@DevKey = "9H9H9E6G1E4I5E0I"
+@AppId = "evans-awesome-app"
+@CobrandId = "40134"
+
+"#{ApiServer}/members/auth?devkey=#{DevKey}&appid=#{AppId}&username=#{enc_username}&password=#{enc_password}"
+"#{ApiServer}/members/auth?devkey=9H9H9E6G1E4I5E0I&appid=evans-awesome-app&username=jham%40rhapsody.com&password=%24ust9*ru"
+http://labs-api.rhapsody.com/v0/members/auth?devkey=9H9H9E6G1E4I5E0I&appid=evans-awesome-app&username=jham%40rhapsody.com&password=%24ust9*ru
+
+
