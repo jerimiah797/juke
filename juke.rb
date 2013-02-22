@@ -9,15 +9,11 @@ require 'rest-client'
 require 'uri'
 require 'highline/import'
 require 'addressable/uri'
-require 'librtmp'
 require 'open4'
-require 'open3'
 require 'streamio-ffmpeg'
 require 'mp3info'
-require 'thread'
-require 'gst'
-require 'nestful'
-#require 'easy_mplayer'
+require 'base64'
+
 require_relative 'mplayer.rb'
 
 
@@ -335,7 +331,10 @@ class App
   attr_accessor :answer
   
   def initialize
-    self.song_id = "Tra.53550123"
+    #self.song_id = "Tra.65319668" #Bad track for testing
+    #self.song_id = "Tra.70625786" #New Bowie track
+    self.song_id = "Tra.51845000" #Zeldo techno
+    #self.song_id = "Tra.53550123" #Short Air track
     self.album_id = "Alb.27479292"
     self.user = Member.new
     self.current_song = Song.new(song_id)
@@ -404,8 +403,5 @@ class App
   
 end
 
-#song_id = "Tra.65319668" #Bad track for testing
-#song_id = "Tra.70625786" #New Bowie track
-#song_id = "Tra.51845000" #Zeldo techno
 $app = App.new
 $app.launch
