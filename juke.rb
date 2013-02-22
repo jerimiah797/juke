@@ -350,7 +350,7 @@ class App
   end
   
   def launch_rtmpgw
-    cmd_out = system "nohup rtmpgw -g 8902 > rtmplog.txt 2>&1 & exit"
+    cmd_out = system "nohup rtmpgw -g 8902 > /dev/null 2>&1 & exit"
     puts"Restreamer Ready..."
   end
   
@@ -387,8 +387,6 @@ class App
         puts "Mplayer: stop!"
         Mplayer::stop()
       elsif answer == "t"
-        #mplayer_test = MPlayer.new(:path => "http://www.dubstep.fm/listen.pls", :message_style => :debug)
-        #mplayer_test.play
         puts "Mplayer: play!"
         Mplayer::play('Tra.70625786')
       elsif answer == " "
