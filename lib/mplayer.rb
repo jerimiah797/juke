@@ -7,7 +7,7 @@ module Mplayer
 
   # this module can overwrite your stty setting for some reason.
   # store the original stty settings in main ruby file as global var
-  # $old_stty = `stty -g`
+  # $app.old_stty = `stty -g`
   
   extend self
 
@@ -24,7 +24,7 @@ module Mplayer
     # Load (play) the file after stopping any previous one
     stop()
     %x{#{echo()} loadfile "#{file}" > #{fifo()}} if running?
-    system "stty #{$old_stty}" # restore stty settings
+    system "stty #{$app.old_stty}" # restore stty settings
   end
   
   def playstream(event)
@@ -32,7 +32,7 @@ module Mplayer
     # Load (play) the file after stopping any previous one
     stop()
     %x{#{echo()} loadfile "#{event}" > #{fifo()}} if running?
-    system "stty #{$old_stty}" # restore stty settings
+    system "stty #{$app.old_stty}" # restore stty settings
   end
 
   # Stop playing the current track.
@@ -40,7 +40,7 @@ module Mplayer
     if running?
       # stop sound then reset parameters in case they were previously changed
       %x{#{echo()} stop > #{fifo()}}
-      system "stty #{$old_stty}" # restore stty settings
+      system "stty #{$app.old_stty}" # restore stty settings
     end
   end
 
@@ -60,13 +60,13 @@ module Mplayer
   # WARNING: This is highly unstable, and mplayer usually crashes.
   def toggle_pause()
     %x{#{echo} pause > #{fifo()}} if running?
-    system "stty #{$old_stty}" # restore stty settings
+    system "stty #{$app.old_stty}" # restore stty settings
   end
 
   # Provide a way to kill the mplayer process
   def kill()
     Process.kill(15, @pid) if running?
-    system "stty #{$old_stty}" # restore stty settings
+    system "stty #{$app.old_stty}" # restore stty settings
   end
 
   private

@@ -17,33 +17,25 @@ require 'yaml'
 
 require_relative 'lib/mplayer.rb'
 
-
-$developerKey = "9H9H9E6G1E4I5E0I"
-$cobrandId = "40134"
-$client_type = "sonos"
-$AppId = "evans-awesome-app"
-# store the old stty settings
-$old_stty = `stty -g`
-
 class Member
   
   attr_accessor :logon
   attr_accessor :password
   attr_accessor :token
-  attr_accessor :ApiServer
+  attr_accessor :apiServer
   attr_accessor :logged_in
   attr_accessor :info
   attr_accessor :filename
   
   def initialize
-    self.ApiServer = "http://labs-api.rhapsody.com/v0"
+    self.apiServer = "http://labs-api.rhapsody.com/v0"
     self.logged_in = false
     self.info = {}
     self.filename = ".juke-user"
   end
 
   def login_member ()
-    auth_url = "#{self.ApiServer}/members/auth?devkey=#{$developerKey}&appid=#{$AppId}&username=#{$app.encode(self.logon)}&password=#{$app.encode(self.password)}"
+    auth_url = "#{self.apiServer}/members/auth?devkey=#{$app.developerKey}&appid=#{$app.appId}&username=#{$app.encode(self.logon)}&password=#{$app.encode(self.password)}"
     auth_hash = JSON.parse(RestClient.post auth_url, :headers => {"Authorization" => "Basic #{Base64.encode64("#{self.logon}:#{self.password}")}"})
     if auth_hash["username"]==self.logon
       self.logged_in=true
@@ -79,7 +71,6 @@ class Member
   end
 end
 
-
 class Song
   attr_accessor :song_id
   attr_accessor :track_title
@@ -113,7 +104,7 @@ class Song
   end
   
   def get_track_metadata
-    url = "http://direct.rhapsody.com/metadata/data/methods/getLiteTrack.js?developerKey=#{$developerKey}&cobrandId=#{$cobrandId}&filterRightsKey=0&trackId=#{self.song_id}"
+    url = "http://direct.rhapsody.com/metadata/data/methods/getLiteTrack.js?developerKey=#{$app.developerKey}&cobrandId=#{$app.cobrandId}&filterRightsKey=0&trackId=#{self.song_id}"
     @metadata_hash = JSON.parse(RestClient.get(url))
     self.track_title = @metadata_hash["name"]
     self.track_artist = @metadata_hash["displayArtistName"]
@@ -249,7 +240,7 @@ class Album
   end
   
   def get_tracks
-    url = "http://direct.rhapsody.com/metadata/data/methods/getAlbum.js?developerKey=#{$developerKey}&albumId=#{self.album_id}&cobrandId=#{$cobrandId}&filterRightsKey=0"
+    url = "http://direct.rhapsody.com/metadata/data/methods/getAlbum.js?developerKey=#{$app.developerKey}&albumId=#{self.album_id}&cobrandId=#{$app.cobrandId}&filterRightsKey=0"
     metadata_obj = JSON.parse(RestClient.get(url))
     for i in 0..metadata_obj["trackMetadatas"].length-1
       x = Song.new(metadata_obj["trackMetadatas"][i]["trackId"])
@@ -285,6 +276,11 @@ class App
   attr_accessor :next_song
   attr_accessor :running
   attr_accessor :answer
+  attr_accessor :old_stty
+  attr_accessor :appId
+  attr_accessor :client_type
+  attr_accessor :cobrandId
+  attr_accessor :developerKey
   
   def initialize
     #self.song_id = "Tra.65319668" #Bad track for testing
@@ -296,6 +292,11 @@ class App
     self.current_song = Song.new(song_id)
     self.running = true
     self.answer = ""
+    self.developerKey = "9H9H9E6G1E4I5E0I"
+    self.cobrandId = "40134"
+    self.client_type = "sonos"
+    self.appId = "evans-awesome-app"
+    self.old_stty = `stty -g` # store the current terminal settings
   end
   
   def launch
@@ -325,6 +326,7 @@ class App
                #q.validate  = /\A[#{choices}]\Z/
              end
       if answer == "q" 
+        system "stty #{$app.old_stty}" # restore stty settings
         puts "Shutting down background processes..."
         puts 'Restreamer: kill!'
         puts "Mplayer: kill!"
