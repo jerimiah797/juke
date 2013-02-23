@@ -2,3 +2,5 @@
 media/*
 *.mp3
 *.flv
+.juke-user
+.DS_store

@@ -13,6 +13,7 @@ require 'open4'
 require 'streamio-ffmpeg'
 require 'mp3info'
 require 'base64'
+require 'yaml'
 
 require_relative 'mplayer.rb'
 
@@ -32,11 +33,13 @@ class Member
   attr_accessor :ApiServer
   attr_accessor :logged_in
   attr_accessor :info
+  attr_accessor :filename
   
   def initialize
     self.ApiServer = "http://labs-api.rhapsody.com/v0"
     self.logged_in = false
     self.info = {}
+    self.filename = ".juke-user"
   end
 
   def login_member ()
@@ -47,8 +50,7 @@ class Member
       puts "\nLogin Successful. "
       puts "Welcome to Rhapsody!"
       self.token = auth_hash["token"]
-      self.info = {"name" => self.logon,"pass" => self.password, "token" => self.token}
-      puts "Info hash: #{self.info}"
+      self.save_userinfo
     else
       puts "Login Error: "+auth_hash["localizedMessage"]
     end
@@ -56,13 +58,24 @@ class Member
 
   def sign_in
     puts 'Welcome to Juke, the Rhapsody shell client'
-    print 'Enter your username: '
-    #set_logon(gets().chomp)
-    self.logon = "jham@rhapsody.com" #temp to speed up testing
-    print 'Enter your password: '
-    #set_password(ask("") { |q| q.echo = false })
-    self.password = "$ust9*ru" #temp to speed up testing
-    login_member()
+    if File.exists?(self.filename)
+      puts "Account info loaded from disk"
+      self.info = YAML.load File.read(self.filename)
+      self.logon = self.info["name"]
+      self.password = self.info["password"]
+      self.token = self.info["token"]
+      return
+    else
+      print 'Enter your username: '
+      self.logon = gets().chomp
+      print 'Enter your password: '
+      self.password = ask("") { |q| q.echo = false }
+      login_member()
+    end
+  end
+  def save_userinfo
+    self.info = {"name" => self.logon,"pass" => self.password, "token" => self.token}
+    File.write self.filename, YAML.dump(self.info)
   end
 end
 
@@ -225,68 +238,6 @@ class Song
   end
 end
 
-=begin
-class MPlayer 
-  def MPlayer.play_stream(launcher)
-    puts RUBY_PLATFORM
-    puts "Entering launch function"   
-    pid, stdin, stdout, stderr = Open4::popen4("sh")
-    if RUBY_PLATFORM =~ /(win|w)(32|64)$/
-      %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
-    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/usr/local/bin/mplayer')      
-      system launcher
-      #pid, stdin, stdout, stderr = Open4::popen4("sh")
-      #stdin.puts(launcher)
-      #puts "MPlayer should be playing"
-      
-      
-      #log = "stdout: #{stdout.read.strip}"
-    
-      #puts @pid
-      #@ignored, @status = Process::waitpid2 @pid
-      #puts "show this text"
-      #puts "exit status: #{@status.exitstatus} "
-    else
-      @stdin.puts "vlc -I rc"
-      puts "VLC Linux standing by!"
-      
-      #puts "stdout: #{@stdout.read.strip}"
-      # system "vlc -I rc"
-    end
-    true
-  end
-  def MPlayer.play_file(song)
-    #return false if connected?
-    puts RUBY_PLATFORM
-    # initialize open4
-    #puts "Entering launch function"
-    pid, stdin, stdout, stderr = Open4::popen4 "sh"
-
-    if RUBY_PLATFORM =~ /(win|w)(32|64)$/
-      %x{ start #{@bin} #{@extra_args} --lua-config "rc={host='#{@host}:#{@port}',flatplaylist=0}" >nul 2>&1 }
-    elsif RUBY_PLATFORM =~ /darwin/ && File.exists?('/usr/local/bin/mplayer') 
-      stdin.puts "mplayer -slave -quiet media/#{song.song_id}.mp3"
-      puts "Playing #{song.track_title}."
-      #puts "stdout: #{@stdout.read.strip}"
-    else
-      @stdin.puts "vlc -I rc"
-      puts "VLC Linux standing by!"
-      
-      #puts "stdout: #{@stdout.read.strip}"
-      # system "vlc -I rc"
-    end
-    true
-  end
-  def MPlayer.pause
-    @stdin.puts "pause"
-    puts "Pause / Play"
-  end
-  def MPlayer.stop
-    @stdin.puts "stop"
-    puts "Pause / Play"
-  end
-=end
-
 class Album
   
   attr_accessor :album_id
@@ -331,6 +282,7 @@ class App
   attr_accessor :song_id
   attr_accessor :album_id
   attr_accessor :current_song
+  attr_accessor :next_song
   attr_accessor :running
   attr_accessor :answer
   
