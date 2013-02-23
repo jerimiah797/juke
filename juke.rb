@@ -15,7 +15,7 @@ require 'mp3info'
 require 'base64'
 require 'yaml'
 
-require_relative 'mplayer.rb'
+require_relative 'lib/mplayer.rb'
 
 
 $developerKey = "9H9H9E6G1E4I5E0I"
