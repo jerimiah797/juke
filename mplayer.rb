@@ -5,8 +5,9 @@ module Mplayer
   FIFO_PATH = 'media/sound'
   TRACK_BASE = 'media'
 
-  # store the old stty settings
-  #$old_stty = `stty -g`
+  # this module can overwrite your stty setting for some reason.
+  # store the original stty settings in main ruby file as global var
+  # $old_stty = `stty -g`
   
   extend self
 
@@ -23,6 +24,7 @@ module Mplayer
     # Load (play) the file after stopping any previous one
     stop()
     %x{#{echo()} loadfile "#{file}" > #{fifo()}} if running?
+    system "stty #{$old_stty}" # restore stty settings
   end
   
   def playstream(event)
@@ -30,6 +32,7 @@ module Mplayer
     # Load (play) the file after stopping any previous one
     stop()
     %x{#{echo()} loadfile "#{event}" > #{fifo()}} if running?
+    system "stty #{$old_stty}" # restore stty settings
   end
 
   # Stop playing the current track.

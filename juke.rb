@@ -31,10 +31,12 @@ class Member
   attr_accessor :token
   attr_accessor :ApiServer
   attr_accessor :logged_in
+  attr_accessor :info
   
   def initialize
     self.ApiServer = "http://labs-api.rhapsody.com/v0"
     self.logged_in = false
+    self.info = {}
   end
 
   def login_member ()
@@ -45,6 +47,8 @@ class Member
       puts "\nLogin Successful. "
       puts "Welcome to Rhapsody!"
       self.token = auth_hash["token"]
+      self.info = {"name" => self.logon,"pass" => self.password, "token" => self.token}
+      puts "Info hash: #{self.info}"
     else
       puts "Login Error: "+auth_hash["localizedMessage"]
     end
