@@ -290,6 +290,7 @@ class App
     self.album_id = "Alb.27479292"
     self.user = Member.new
     self.current_song = Song.new(song_id)
+    self.next_song = ""
     self.running = true
     self.answer = ""
     self.developerKey = "9H9H9E6G1E4I5E0I"
