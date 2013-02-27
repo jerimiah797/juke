@@ -97,7 +97,8 @@ module Mplayer
                   '-cache-min',
                   '4',             # start playing streams right away
                   '-nolirc',       # don't attempt to initialise a LIRC remote
-                  '-really-quiet', # no informational messages
+                  #'-really-quiet', # no informational messages
+                  '-quiet', # no informational messages
                   '-idle',         # run without immediately playing anything
                   '-input',        # listen on a FIFO for commands
                   "file=#{fifo()}",# the FIFO location
